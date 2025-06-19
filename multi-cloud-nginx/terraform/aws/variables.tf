@@ -1,12 +1,18 @@
 variable "aws_access_key" {
   description = "AWS Access Key"
   type        = string
-  default     = "" # Laissez vide si vous passez par les variables d'environnement
+  default     = "" # Utilisera les variables d'environnement si vide
 }
 
 variable "aws_secret_key" {
   description = "AWS Secret Key"
   type        = string
   sensitive   = true
-  default     = "" # Laissez vide si vous passez par les variables d'environnement
+  default     = "" # Utilisera les variables d'environnement si vide
+}
+
+variable "aws_key_name" {
+  description = "AWS Key Pair Name"
+  type        = string
+  default     = "your-default-key-name" # Ajoutez une valeur par défaut ou laissez vide
 }
