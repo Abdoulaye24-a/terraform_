@@ -1,0 +1,42 @@
+name: Provision & Configure Multi-Cloud VMs
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform AWS
+        run: |
+          cd terraform/aws
+          terraform init
+          terraform apply -auto-approve
+
+      - name: Terraform Azure
+        run: |
+          cd terraform/azure
+          terraform init
+          terraform apply -auto-approve
+
+      - name: Terraform GCP
+        run: |
+          cd terraform/gcp
+          terraform init
+          terraform apply -auto-approve
+
+      - name: Générer inventaire Ansible
+        run: python3 scripts/generate_inventory.py
+
+      - name: Installer Ansible
+        run: sudo apt-get install -y ansible
+
+      - name: Déployer Nginx
+        run: ansible-playbook -i ansible/inventory.ini ansible/nginx.yml
