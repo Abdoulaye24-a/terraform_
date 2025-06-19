@@ -7,7 +7,7 @@ provider "aws" {
 resource "aws_instance" "vm" {
   ami           = "ami-0c02fb55956c7d316"
   instance_type = "t2.micro"
-  key_name      = var.aws_key_name
+  key_name      = var.aws_key_name != "" ? var.aws_key_name : null
 
   tags = {
     Name = "vm-aws-nginx"
