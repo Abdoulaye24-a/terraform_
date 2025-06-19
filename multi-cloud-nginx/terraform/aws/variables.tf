@@ -14,5 +14,5 @@ variable "aws_secret_key" {
 variable "aws_key_name" {
   description = "AWS Key Pair Name"
   type        = string
-  default     = "your-default-key-name" # Remplace par ta clé SSH AWS ou laisse vide
+  default     = "" # Remplace par ta clé SSH AWS ou passe la via secrets
 }
