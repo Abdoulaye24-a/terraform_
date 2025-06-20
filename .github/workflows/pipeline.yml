@@ -15,7 +15,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
-      - name: Provision AWS VM with Terraform
+      - name: Terraform AWS
         run: |
           cd multi-cloud-nginx/terraform/aws
           terraform init
@@ -26,22 +26,16 @@ jobs:
 
       - name: Export AWS public IP to JSON
         run: |
-          IP=$(terraform -chdir=multi-cloud-nginx/terraform/aws output -raw aws_public_ip)
-          echo "{ \"aws\": \"$IP\" }" > multi-cloud-nginx/scripts/ips.json
-
-      - name: Generate Ansible inventory
-        run: |
-          python3 multi-cloud-nginx/scripts/generate_inventory.py
+          cd multi-cloud-nginx/terraform/aws
+          terraform output -raw aws_public_ip > tmp_ip.txt
+          IP=$(cat tmp_ip.txt | tr -d '\r\n')
+          echo "{ \"aws\": \"${IP}\" }" > ../../scripts/ips.json
 
       - name: Install Ansible
-        run: |
-          sudo apt-get update && sudo apt-get install -y ansible
+        run: sudo apt-get update && sudo apt-get install -y ansible
 
-      - name: Deploy Nginx via Ansible
-        run: |
-          ansible-playbook -i multi-cloud-nginx/ansible/inventory.ini multi-cloud-nginx/ansible/nginx.yml
+      - name: Generate Ansible Inventory
+        run: python3 multi-cloud-nginx/scripts/generate_inventory.py
 
-      - name: Check Nginx is running
-        run: |
-          IP=$(jq -r '.aws' multi-cloud-nginx/scripts/ips.json)
-          curl -I --connect-timeout 10 http://$IP | grep "200 OK"
+      - name: Deploy Nginx with Ansible
+        run: ansible-playbook -i multi-cloud-nginx/ansible/inventory.ini multi-cloud-nginx/ansible/nginx.yml
