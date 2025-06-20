@@ -1,8 +1,8 @@
-name: Provision & Configure Multi-Cloud VMs
+name: Provision & Configure AWS VM with Nginx
 
 on:
   push:
-    branches: [master] # ✅ Assure-toi que c'est bien la branche sur laquelle tu travailles (master ou main)
+    branches: [master]  # ou 'main' selon ta branche
 
 jobs:
   deploy:
@@ -10,14 +10,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3 # Utilise v3 ou v4, les deux sont compatibles.
+        uses: actions/checkout@v3
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
       - name: Terraform AWS
         run: |
-          # Correction du chemin : ajout de 'multi-cloud-nginx/'
           cd multi-cloud-nginx/terraform/aws
           terraform init
           terraform apply -auto-approve
@@ -25,38 +24,14 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
 
-      - name: Terraform Azure
-        run: |
-          # Correction du chemin : ajout de 'multi-cloud-nginx/'
-          cd multi-cloud-nginx/terraform/azure
-          terraform init
-          terraform apply -auto-approve
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-
-      - name: Terraform GCP
-        run: |
-          # Correction du chemin : ajout de 'multi-cloud-nginx/'
-          cd multi-cloud-nginx/terraform/gcp
-          terraform init
-          terraform apply -auto-approve
-        env:
-          GOOGLE_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
-
       - name: Générer inventaire Ansible
         run: |
-          # Correction du chemin : ajout de 'multi-cloud-nginx/'
           python3 multi-cloud-nginx/scripts/generate_inventory.py
 
       - name: Installer Ansible
         run: |
-          # Mise à jour des dépôts et installation d'Ansible
           sudo apt-get update && sudo apt-get install -y ansible
 
       - name: Déployer Nginx
         run: |
-          # Correction des chemins : ajout de 'multi-cloud-nginx/' pour l'inventaire et le playbook
           ansible-playbook -i multi-cloud-nginx/ansible/inventory.ini multi-cloud-nginx/ansible/nginx.yml
