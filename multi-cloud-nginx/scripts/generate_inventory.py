@@ -10,8 +10,14 @@ try:
         ips = json.load(f)
     
     with open(inventory_path, 'w') as f:
+        # Groupe d'hôtes
         f.write('[aws]\n')
-        f.write(f"{ips['aws']} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/aws.pem\n")
+        f.write(f"{ips['aws']} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/aws.pem\n\n")
+
+        # Variables associées au groupe
+        f.write('[aws:vars]\n')
+        f.write("ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'\n")
+        f.write("ansible_python_interpreter=/usr/bin/python3\n")
 
 except FileNotFoundError:
     print(f"Error: File {ips_path} not found")
