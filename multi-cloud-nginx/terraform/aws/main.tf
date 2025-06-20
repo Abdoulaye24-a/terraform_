@@ -1,15 +1,17 @@
 provider "aws" {
-  region = "us-east-1"
-  # Pas besoin de définir access_key / secret_key ici
-  # Terraform les prendra dans les variables d’environnement GitHub Actions
+  region = "eu-north-1"  # Changement de région
 }
 
 resource "aws_instance" "vm" {
-  ami           = "ami-0c02fb55956c7d316"
-  instance_type = "t2.micro"
+  ami           = "ami-0fe8bec493a81c7da"  # Ubuntu 22.04 en eu-north-1
+  instance_type = "t3.micro"               # Type disponible dans eu-north-1
   key_name      = var.aws_key_name
 
   tags = {
     Name = "vm-aws-nginx"
   }
+}
+
+output "public_ip" {
+  value = aws_instance.vm.public_ip
 }
