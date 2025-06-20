@@ -1,8 +1,21 @@
 import json
+import os
 
-with open('multi-cloud-nginx/scripts/ips.json') as f:
-    ips = json.load(f)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+ips_path = os.path.join(script_dir, 'ips.json')
+inventory_path = os.path.join(script_dir, '../ansible/inventory.ini')
 
-with open('multi-cloud-nginx/ansible/inventory.ini', 'w') as f:
-    f.write('[all]\n')
-    f.write(f"{ips['aws']} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/aws.pem\n")
+try:
+    with open(ips_path) as f:
+        ips = json.load(f)
+    
+    with open(inventory_path, 'w') as f:
+        f.write('[aws]\n')
+        f.write(f"{ips['aws']} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/aws.pem\n")
+
+except FileNotFoundError:
+    print(f"Error: File {ips_path} not found")
+    exit(1)
+except KeyError:
+    print("Error: 'aws' key not found in ips.json")
+    exit(1)
