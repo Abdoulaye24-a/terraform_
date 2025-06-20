@@ -2,7 +2,7 @@ name: Provision & Configure AWS VM with Nginx
 
 on:
   push:
-    branches: [master]  # ou 'main' selon ta branche
+    branches: [master]
 
 jobs:
   deploy:
