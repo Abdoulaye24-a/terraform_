@@ -7,7 +7,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -27,7 +26,7 @@ jobs:
         run: |
           cd multi-cloud-nginx/terraform/aws
           terraform init
-          terraform apply -auto-approve -input=false
+          terraform apply -auto-approve
           terraform output -json > ../../scripts/ips.json
 
       - name: Setup SSH Key
@@ -36,15 +35,10 @@ jobs:
           echo "${{ secrets.AWS_SSH_PRIVATE_KEY }}" > ~/.ssh/aws_key.pem
           chmod 600 ~/.ssh/aws_key.pem
 
-      - name: Generate Ansible Inventory
-        run: |
-          cd multi-cloud-nginx/scripts
-          python3 generate_inventory.py
-
       - name: Install Ansible
         run: sudo apt-get update && sudo apt-get install -y ansible
 
-      - name: Deploy Nginx
+      - name: Run Ansible Playbook
         run: |
           cd multi-cloud-nginx/ansible
-          ansible-playbook -i inventory.ini nginx.yml --ssh-common-args='-o StrictHostKeyChecking=no'
+          ansible-playbook -i inventory.ini nginx.yml
