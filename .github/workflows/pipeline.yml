@@ -2,7 +2,7 @@ name: Provision & Configure AWS VM with Nginx
 
 on:
   push:
-    branches: [master]
+    branches: [master]  # Vérifie bien que ta branche est "master"
 
 jobs:
   deploy:
@@ -24,13 +24,17 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
 
-      - name: Générer inventaire Ansible
+      - name: Exporter l'IP publique AWS vers ips.json
         run: |
-          python3 multi-cloud-nginx/scripts/generate_inventory.py
+          echo "{\"aws\": \"$(terraform -chdir=multi-cloud-nginx/terraform/aws output -raw aws_public_ip)\"}" > multi-cloud-nginx/scripts/ips.json
 
       - name: Installer Ansible
         run: |
           sudo apt-get update && sudo apt-get install -y ansible
+
+      - name: Générer inventaire Ansible
+        run: |
+          python3 multi-cloud-nginx/scripts/generate_inventory.py
 
       - name: Déployer Nginx
         run: |
