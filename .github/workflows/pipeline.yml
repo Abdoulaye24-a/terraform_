@@ -1,6 +1,3 @@
-voici mon pipline 
-
-
 name: Provision & Configure AWS VM with Nginx
 
 on:
@@ -18,7 +15,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
-      - name: Terraform AWS
+      - name: Provision AWS VM with Terraform
         run: |
           cd multi-cloud-nginx/terraform/aws
           terraform init
@@ -27,14 +24,24 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
 
-      - name: Générer inventaire Ansible
+      - name: Export AWS public IP to JSON
+        run: |
+          IP=$(terraform -chdir=multi-cloud-nginx/terraform/aws output -raw aws_public_ip)
+          echo "{ \"aws\": \"$IP\" }" > multi-cloud-nginx/scripts/ips.json
+
+      - name: Generate Ansible inventory
         run: |
           python3 multi-cloud-nginx/scripts/generate_inventory.py
 
-      - name: Installer Ansible
+      - name: Install Ansible
         run: |
           sudo apt-get update && sudo apt-get install -y ansible
 
-      - name: Déployer Nginx
+      - name: Deploy Nginx via Ansible
         run: |
           ansible-playbook -i multi-cloud-nginx/ansible/inventory.ini multi-cloud-nginx/ansible/nginx.yml
+
+      - name: Check Nginx is running
+        run: |
+          IP=$(jq -r '.aws' multi-cloud-nginx/scripts/ips.json)
+          curl -I --connect-timeout 10 http://$IP | grep "200 OK"
