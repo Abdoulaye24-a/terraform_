@@ -2,11 +2,12 @@ name: Provision & Configure AWS VM with Nginx
 
 on:
   push:
-    branches: [master]  # Vérifie bien que ta branche est "master"
+    branches: [master]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -15,27 +16,35 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
-      - name: Terraform AWS
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Terraform Init & Apply
         run: |
           cd multi-cloud-nginx/terraform/aws
           terraform init
-          terraform apply -auto-approve
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          terraform apply -auto-approve -input=false
+          terraform output -json > ../../scripts/ips.json
 
-      - name: Exporter l'IP publique AWS vers ips.json
+      - name: Setup SSH Key
         run: |
-          echo "{\"aws\": \"$(terraform -chdir=multi-cloud-nginx/terraform/aws output -raw aws_public_ip)\"}" > multi-cloud-nginx/scripts/ips.json
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AWS_SSH_PRIVATE_KEY }}" > ~/.ssh/aws_key.pem
+          chmod 600 ~/.ssh/aws_key.pem
 
-      - name: Installer Ansible
+      - name: Generate Ansible Inventory
         run: |
-          sudo apt-get update && sudo apt-get install -y ansible
+          cd multi-cloud-nginx/scripts
+          python3 generate_inventory.py
 
-      - name: Générer inventaire Ansible
-        run: |
-          python3 multi-cloud-nginx/scripts/generate_inventory.py
+      - name: Install Ansible
+        run: sudo apt-get update && sudo apt-get install -y ansible
 
-      - name: Déployer Nginx
+      - name: Deploy Nginx
         run: |
-          ansible-playbook -i multi-cloud-nginx/ansible/inventory.ini multi-cloud-nginx/ansible/nginx.yml
+          cd multi-cloud-nginx/ansible
+          ansible-playbook -i inventory.ini nginx.yml --ssh-common-args='-o StrictHostKeyChecking=no'
