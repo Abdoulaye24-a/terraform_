@@ -31,7 +31,7 @@ jobs:
           cd multi-cloud-nginx/terraform/aws
           terraform init
           terraform apply -auto-approve
-          terraform output -raw public_ip > ../../scripts/ip.txt
+          terraform output -raw aws_public_ip > ../../scripts/ip.txt
           echo "{\"aws\":\"$(cat ../../scripts/ip.txt)\"}" > ../../scripts/ips.json
 
       - name: Generate Ansible Inventory
