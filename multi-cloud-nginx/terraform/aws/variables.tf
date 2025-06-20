@@ -1,20 +1,20 @@
-# variables.tf - Bonne configuration
+# variables.tf - Configuration pour AWS uniquement
 
 variable "aws_access_key" {
-  description = "AWS Access Key"
+  description = "AWS Access Key (optionnelle ici car injectée via GitHub Secrets)"
   type        = string
-  default     = "" # Utilisera les variables d'environnement AWS_ACCESS_KEY_ID si vide
+  default     = "" # Terraform utilisera AWS_ACCESS_KEY_ID si laissé vide
 }
 
 variable "aws_secret_key" {
-  description = "AWS Secret Key"
+  description = "AWS Secret Key (optionnelle ici car injectée via GitHub Secrets)"
   type        = string
   sensitive   = true
-  default     = "" # Utilisera les variables d'environnement AWS_SECRET_ACCESS_KEY si vide
+  default     = "" # Terraform utilisera AWS_SECRET_ACCESS_KEY si laissé vide
 }
 
 variable "aws_key_name" {
-  description = "AWS Key Pair Name"
+  description = "Nom de la paire de clés EC2 (ex: aws-key.pem sans l'extension)"
   type        = string
-  default     = "" # Doit être vide pour utiliser la clé SSH stockée dans les secrets GitHub
+  default     = "" # À injecter via GitHub Secret TF_VAR_aws_key_name
 }
