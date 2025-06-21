@@ -1,36 +1,46 @@
 ---
 - name: Installer et configurer Nginx
-  hosts: aws_servers  # Correspond au groupe dans l'inventaire
+  hosts: aws
   become: yes
-  
+  gather_facts: yes
+  vars:
+    nginx_port: 80
+    
   tasks:
-    - name: Mettre à jour le cache des paquets
+    - name: Attendre que l'instance soit prête
+      wait_for_connection:
+        timeout: 300
+        
+    - name: Update apt cache
       apt:
         update_cache: yes
+        cache_valid_time: 3600
         
-    - name: Installer Nginx
+    - name: Installer nginx
       apt:
         name: nginx
         state: present
         
-    - name: Démarrer et activer Nginx
-      systemd:
-        name: nginx
-        state: started
-        enabled: yes
-        
-    - name: Créer une page d'accueil personnalisée
+    - name: Créer une page HTML personnalisée
       copy:
         content: |
           <!DOCTYPE html>
           <html>
           <head>
-              <title>Bienvenue sur votre serveur AWS</title>
+              <title>Nginx sur AWS</title>
+              <style>
+                  body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+                  .container { max-width: 600px; margin: 0 auto; }
+                  .success { color: #28a745; }
+              </style>
           </head>
           <body>
-              <h1>Félicitations !</h1>
-              <p>Nginx est installé et fonctionne sur votre instance AWS EC2.</p>
-              <p>Déployé automatiquement avec Terraform et Ansible via GitHub Actions.</p>
+              <div class="container">
+                  <h1 class="success">🎉 Nginx installé avec succès!</h1>
+                  <p>Serveur: {{ inventory_hostname }}</p>
+                  <p>Date de déploiement: {{ ansible_date_time.iso8601 }}</p>
+                  <p>Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}</p>
+              </div>
           </body>
           </html>
         dest: /var/www/html/index.html
@@ -38,11 +48,49 @@
         group: www-data
         mode: '0644'
         
-    - name: Vérifier le statut de Nginx
+    - name: Configurer le firewall pour HTTP
+      ufw:
+        rule: allow
+        port: '80'
+        proto: tcp
+        
+    - name: Configurer le firewall pour SSH
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+        
+    - name: Activer le firewall
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+        
+    - name: Démarrer et activer nginx
+      systemd:
+        name: nginx
+        state: started
+        enabled: true
+        daemon_reload: true
+        
+    - name: Vérifier le statut de nginx
       systemd:
         name: nginx
       register: nginx_status
       
-    - name: Afficher le statut de Nginx
+    - name: Afficher le statut de nginx
       debug:
         msg: "Nginx est {{ nginx_status.status.ActiveState }}"
+        
+    - name: Tester la connectivité HTTP
+      uri:
+        url: "http://{{ inventory_hostname }}"
+        method: GET
+        status_code: 200
+      delegate_to: localhost
+      register: http_test
+      
+    - name: Afficher le résultat du test
+      debug:
+        msg: "✅ Site accessible sur http://{{ inventory_hostname }}"
+      when: http_test.status == 200
