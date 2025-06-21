@@ -32,16 +32,14 @@
                   body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
                   .container { max-width: 600px; margin: 0 auto; }
                   .success { color: #28a745; }
-                  .info { color: #17a2b8; margin: 10px 0; }
               </style>
           </head>
           <body>
               <div class="container">
                   <h1 class="success">🎉 Nginx installé avec succès!</h1>
-                  <p class="info">Serveur: {{ inventory_hostname }}</p>
-                  <p class="info">Date de déploiement: {{ ansible_date_time.iso8601 }}</p>
-                  <p class="info">Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}</p>
-                  <p class="info">Déployé via GitHub Actions</p>
+                  <p>Serveur: {{ inventory_hostname }}</p>
+                  <p>Date de déploiement: {{ ansible_date_time.iso8601 }}</p>
+                  <p>Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}</p>
               </div>
           </body>
           </html>
@@ -84,25 +82,15 @@
       debug:
         msg: "Nginx est {{ nginx_status.status.ActiveState }}"
         
-    - name: Attendre que Nginx soit complètement démarré
-      wait_for:
-        port: 80
-        host: "{{ inventory_hostname }}"
-        delay: 5
-        timeout: 30
-        
-    - name: Tester la connectivité HTTP locale
+    - name: Tester la connectivité HTTP
       uri:
-        url: "http://localhost"
+        url: "http://{{ inventory_hostname }}"
         method: GET
         status_code: 200
-      register: local_http_test
+      delegate_to: localhost
+      register: http_test
       
-    - name: Afficher le résultat du test local
+    - name: Afficher le résultat du test
       debug:
-        msg: "✅ Site accessible localement"
-      when: local_http_test.status == 200
-      
-    - name: Afficher l'URL publique
-      debug:
-        msg: "🌐 Site accessible sur: http://{{ inventory_hostname }}"
+        msg: "✅ Site accessible sur http://{{ inventory_hostname }}"
+      when: http_test.status == 200
