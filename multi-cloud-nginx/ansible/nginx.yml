@@ -1,6 +1,6 @@
 ---
 - name: Installer et configurer Nginx
-  hosts: aws_servers
+  hosts: aws
   become: yes
   gather_facts: yes
   vars:
