@@ -40,15 +40,19 @@ def get_aws_ip_from_terraform():
 def create_inventory_file(aws_ip):
     """Crée le fichier d'inventaire Ansible"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    inventory_path = os.path.join(script_dir, '../ansible/inventory.ini')
+    
+    # Corriger le chemin - le script est dans multi-cloud-nginx/scripts/
+    # et on veut créer l'inventaire dans multi-cloud-nginx/ansible/
+    inventory_path = os.path.join(script_dir, '..', 'ansible', 'inventory.ini')
     
     # Créer le répertoire ansible s'il n'existe pas
     os.makedirs(os.path.dirname(inventory_path), exist_ok=True)
     
-    inventory_content = f"""[aws_servers]
+    # Corriger le format de l'inventaire - utiliser le groupe 'aws' comme dans le playbook
+    inventory_content = f"""[aws]
 {aws_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/aws.pem
 
-[aws_servers:vars]
+[aws:vars]
 ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 ansible_python_interpreter=/usr/bin/python3
 """
@@ -59,6 +63,33 @@ ansible_python_interpreter=/usr/bin/python3
     print(f"✓ Fichier d'inventaire créé: {inventory_path}")
     return inventory_path
 
+def validate_inventory_format(inventory_path):
+    """Valide le format du fichier d'inventaire"""
+    try:
+        with open(inventory_path, 'r') as f:
+            content = f.read()
+            
+        print("\nValidation du fichier d'inventaire:")
+        print("=" * 40)
+        print(content)
+        print("=" * 40)
+        
+        # Vérifications basiques
+        if '[aws]' not in content:
+            raise ValueError("Section [aws] manquante")
+        
+        lines = content.strip().split('\n')
+        for line in lines:
+            if line.strip() and not line.startswith('[') and not line.startswith('#'):
+                if 'ansible_user' not in line:
+                    print(f"Attention: ligne sans ansible_user: {line}")
+        
+        print("✓ Format de l'inventaire valide")
+        
+    except Exception as e:
+        print(f"✗ Erreur de validation: {e}")
+        sys.exit(1)
+
 def main():
     try:
         # Obtenir l'IP AWS
@@ -67,12 +98,11 @@ def main():
         # Créer le fichier d'inventaire
         inventory_path = create_inventory_file(aws_ip)
         
-        # Afficher le contenu créé
-        print("\nContenu du fichier d'inventaire:")
-        with open(inventory_path, 'r') as f:
-            print(f.read())
-            
-        print("✓ Génération de l'inventaire réussie!")
+        # Valider le format
+        validate_inventory_format(inventory_path)
+        
+        print("✓ Génération et validation de l'inventaire réussies!")
+        print(f"✓ Fichier créé: {inventory_path}")
         
     except Exception as e:
         print(f"✗ Erreur: {e}")
