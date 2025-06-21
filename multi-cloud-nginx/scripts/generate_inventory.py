@@ -1,27 +1,20 @@
 #!/usr/bin/env python3
 
-import subprocess
 import os
 import sys
+import json
 
-def get_aws_ip_from_terraform():
-    """Obtient l'IP AWS directement depuis Terraform"""
+def get_aws_ip_from_file():
+    """Obtient l'IP AWS depuis le fichier créé par Terraform"""
     try:
-        # Aller dans le répertoire parent (où se trouve les fichiers Terraform)
-        terraform_dir = os.path.join(os.path.dirname(__file__), '..')
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        ip_file = os.path.join(script_dir, 'ip.txt')
         
-        print("Récupération de l'IP AWS depuis Terraform...")
+        if not os.path.exists(ip_file):
+            raise FileNotFoundError(f"Fichier IP non trouvé: {ip_file}")
         
-        # Exécuter la commande terraform output
-        result = subprocess.run(
-            ['terraform', 'output', '-raw', 'aws_public_ip'],
-            cwd=terraform_dir,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        
-        aws_ip = result.stdout.strip()
+        with open(ip_file, 'r') as f:
+            aws_ip = f.read().strip()
         
         if not aws_ip or aws_ip == 'null':
             raise ValueError("IP AWS vide ou null")
@@ -29,32 +22,29 @@ def get_aws_ip_from_terraform():
         print(f"IP AWS trouvée: {aws_ip}")
         return aws_ip
         
-    except subprocess.CalledProcessError as e:
-        print(f"Erreur lors de l'exécution de terraform output: {e}")
-        print(f"Erreur stderr: {e.stderr}")
-        sys.exit(1)
     except Exception as e:
-        print(f"Erreur: {e}")
+        print(f"Erreur lors de la lecture de l'IP: {e}")
         sys.exit(1)
 
 def create_inventory_file(aws_ip):
     """Crée le fichier d'inventaire Ansible"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Corriger le chemin - le script est dans multi-cloud-nginx/scripts/
-    # et on veut créer l'inventaire dans multi-cloud-nginx/ansible/
+    # Le script est dans multi-cloud-nginx/scripts/
+    # L'inventaire doit être dans multi-cloud-nginx/ansible/
     inventory_path = os.path.join(script_dir, '..', 'ansible', 'inventory.ini')
     
     # Créer le répertoire ansible s'il n'existe pas
     os.makedirs(os.path.dirname(inventory_path), exist_ok=True)
     
-    # Corriger le format de l'inventaire - utiliser le groupe 'aws' comme dans le playbook
+    # Format d'inventaire compatible avec le playbook (hosts: aws)
     inventory_content = f"""[aws]
 {aws_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/aws.pem
 
 [aws:vars]
-ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30'
 ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_timeout=30
 """
     
     with open(inventory_path, 'w') as f:
@@ -69,31 +59,66 @@ def validate_inventory_format(inventory_path):
         with open(inventory_path, 'r') as f:
             content = f.read()
             
-        print("\nValidation du fichier d'inventaire:")
-        print("=" * 40)
+        print("\n" + "="*50)
+        print("CONTENU DE L'INVENTAIRE ANSIBLE")
+        print("="*50)
         print(content)
-        print("=" * 40)
+        print("="*50)
         
         # Vérifications basiques
         if '[aws]' not in content:
-            raise ValueError("Section [aws] manquante")
+            raise ValueError("Section [aws] manquante dans l'inventaire")
         
-        lines = content.strip().split('\n')
+        lines = [line.strip() for line in content.split('\n') if line.strip()]
+        host_found = False
+        
         for line in lines:
-            if line.strip() and not line.startswith('[') and not line.startswith('#'):
-                if 'ansible_user' not in line:
-                    print(f"Attention: ligne sans ansible_user: {line}")
+            if not line.startswith('[') and not line.startswith('#') and 'ansible_' not in line:
+                host_found = True
+                print(f"✓ Host trouvé: {line}")
         
-        print("✓ Format de l'inventaire valide")
+        if not host_found:
+            raise ValueError("Aucun host trouvé dans l'inventaire")
+        
+        print("✓ Format de l'inventaire validé avec succès")
         
     except Exception as e:
-        print(f"✗ Erreur de validation: {e}")
+        print(f"✗ Erreur de validation de l'inventaire: {e}")
         sys.exit(1)
+
+def create_backup_files():
+    """Crée des fichiers de sauvegarde pour debug"""
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Lire l'IP
+        with open(os.path.join(script_dir, 'ip.txt'), 'r') as f:
+            ip = f.read().strip()
+        
+        # Créer un fichier de debug
+        debug_info = {
+            "aws_ip": ip,
+            "timestamp": os.popen('date').read().strip(),
+            "script_location": script_dir,
+            "inventory_location": os.path.join(script_dir, '..', 'ansible', 'inventory.ini')
+        }
+        
+        with open(os.path.join(script_dir, 'debug_info.json'), 'w') as f:
+            json.dump(debug_info, f, indent=2)
+        
+        print("✓ Fichiers de debug créés")
+        
+    except Exception as e:
+        print(f"Attention: Impossible de créer les fichiers de debug: {e}")
 
 def main():
     try:
-        # Obtenir l'IP AWS
-        aws_ip = get_aws_ip_from_terraform()
+        print("="*60)
+        print("GÉNÉRATION DE L'INVENTAIRE ANSIBLE")
+        print("="*60)
+        
+        # Obtenir l'IP AWS depuis le fichier
+        aws_ip = get_aws_ip_from_file()
         
         # Créer le fichier d'inventaire
         inventory_path = create_inventory_file(aws_ip)
@@ -101,11 +126,17 @@ def main():
         # Valider le format
         validate_inventory_format(inventory_path)
         
-        print("✓ Génération et validation de l'inventaire réussies!")
-        print(f"✓ Fichier créé: {inventory_path}")
+        # Créer des fichiers de debug
+        create_backup_files()
+        
+        print("\n" + "="*60)
+        print("✅ GÉNÉRATION DE L'INVENTAIRE RÉUSSIE!")
+        print(f"📁 Fichier créé: {inventory_path}")
+        print(f"🌐 IP AWS: {aws_ip}")
+        print("="*60)
         
     except Exception as e:
-        print(f"✗ Erreur: {e}")
+        print(f"\n❌ ERREUR LORS DE LA GÉNÉRATION: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
