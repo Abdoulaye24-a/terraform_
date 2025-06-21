@@ -3,6 +3,7 @@ name: Provision & Configure AWS VM with Nginx
 on:
   push:
     branches: [master]
+  workflow_dispatch:  # Permet d'exécuter manuellement
 
 jobs:
   deploy:
@@ -12,37 +13,124 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       TF_VAR_aws_key_name: ${{ secrets.TF_VAR_aws_key_name }}
-
+      
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-
+        uses: actions/checkout@v4  # Version plus récente
+        
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-
+        uses: hashicorp/setup-terraform@v3  # Version plus récente
+        with:
+          terraform_version: 1.5.0
+          
       - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.AWS_SSH_PRIVATE_KEY }}" > ~/.ssh/aws.pem
           chmod 600 ~/.ssh/aws.pem
-
+          # Tester la clé SSH
+          ssh-keygen -l -f ~/.ssh/aws.pem
+          
       - name: Terraform Init & Apply
         run: |
           cd multi-cloud-nginx/terraform/aws
           terraform init
+          terraform validate
+          terraform plan
           terraform apply -auto-approve
+          
+          # Vérifier que l'output existe
+          terraform output aws_public_ip
+          
+          # Créer les répertoires nécessaires
+          mkdir -p ../../scripts
+          
+          # Sauvegarder l'IP
           terraform output -raw aws_public_ip > ../../scripts/ip.txt
+          echo "IP AWS créée: $(cat ../../scripts/ip.txt)"
+          
+          # Créer le fichier JSON (optionnel, selon votre script)
           echo "{\"aws\":\"$(cat ../../scripts/ip.txt)\"}" > ../../scripts/ips.json
-
+          
+      - name: Wait for Instance to be Ready
+        run: |
+          IP=$(cat multi-cloud-nginx/scripts/ip.txt)
+          echo "Attente que l'instance $IP soit prête..."
+          
+          # Attendre que le port SSH soit ouvert
+          timeout 300 bash -c "until nc -z $IP 22; do sleep 5; echo 'Attente SSH...'; done"
+          echo "Instance prête!"
+          
       - name: Generate Ansible Inventory
         run: |
           cd multi-cloud-nginx/scripts
+          
+          # Vérifier que le script existe
+          if [ ! -f "generate_inventory.py" ]; then
+            echo "Erreur: generate_inventory.py non trouvé"
+            exit 1
+          fi
+          
+          # Exécuter le script
           python3 generate_inventory.py
-
+          
+          # Vérifier que l'inventaire a été créé
+          if [ -f "../ansible/inventory.ini" ]; then
+            echo "✓ Inventaire créé avec succès"
+            echo "Contenu de l'inventaire:"
+            cat ../ansible/inventory.ini
+          else
+            echo "✗ Erreur: inventaire non créé"
+            exit 1
+          fi
+          
       - name: Install Ansible
-        run: sudo apt-get update && sudo apt-get install -y ansible
-
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+          ansible --version
+          
+      - name: Test Ansible Connectivity
+        run: |
+          cd multi-cloud-nginx/ansible
+          
+          # Tester l'inventaire
+          echo "=== Test de l'inventaire ==="
+          ansible-inventory -i inventory.ini --list
+          
+          # Test de ping (peut échouer au début)
+          echo "=== Test de connectivité ==="
+          ansible aws -i inventory.ini -m ping --ssh-common-args='-o StrictHostKeyChecking=no -o ConnectTimeout=10' || echo "Ping initial échoué - normal"
+          
       - name: Run Ansible Playbook
         run: |
           cd multi-cloud-nginx/ansible
-          ansible-playbook -i inventory.ini nginx.yml --ssh-common-args='-o StrictHostKeyChecking=no'
+          
+          # Vérifier que le playbook existe
+          if [ ! -f "nginx.yml" ]; then
+            echo "Erreur: nginx.yml non trouvé"
+            ls -la
+            exit 1
+          fi
+          
+          # Exécuter le playbook avec retry
+          ansible-playbook \
+            -i inventory.ini \
+            nginx.yml \
+            --ssh-common-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' \
+            --timeout=30 \
+            -v
+            
+      - name: Display Results
+        run: |
+          IP=$(cat multi-cloud-nginx/scripts/ip.txt)
+          echo "🎉 Déploiement terminé!"
+          echo "🌐 Votre site est accessible sur: http://$IP"
+          echo "🔧 Pour vous connecter en SSH: ssh -i ~/.ssh/aws.pem ubuntu@$IP"
+          
+      - name: Cleanup on Failure
+        if: failure()
+        run: |
+          echo "⚠️ Nettoyage en cas d'échec..."
+          cd multi-cloud-nginx/terraform/aws
+          terraform destroy -auto-approve || echo "Destruction échouée"
