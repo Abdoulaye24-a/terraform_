@@ -32,14 +32,20 @@
                   body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
                   .container { max-width: 600px; margin: 0 auto; }
                   .success { color: #28a745; }
+                  .info { background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }
               </style>
           </head>
           <body>
               <div class="container">
                   <h1 class="success">🎉 Nginx installé avec succès!</h1>
-                  <p>Serveur: {{ inventory_hostname }}</p>
-                  <p>Date de déploiement: {{ ansible_date_time.iso8601 }}</p>
-                  <p>Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}</p>
+                  <div class="info">
+                      <p><strong>Serveur:</strong> {{ inventory_hostname }}</p>
+                      <p><strong>IP Publique:</strong> {{ ansible_default_ipv4.address }}</p>
+                      <p><strong>Date de déploiement:</strong> {{ ansible_date_time.iso8601 }}</p>
+                      <p><strong>Distribution:</strong> {{ ansible_distribution }} {{ ansible_distribution_version }}</p>
+                      <p><strong>Architecture:</strong> {{ ansible_architecture }}</p>
+                  </div>
+                  <p>🚀 Déployé automatiquement avec Terraform + Ansible</p>
               </div>
           </body>
           </html>
@@ -82,15 +88,33 @@
       debug:
         msg: "Nginx est {{ nginx_status.status.ActiveState }}"
         
-    - name: Tester la connectivité HTTP
+    - name: Attendre que nginx soit disponible
+      wait_for:
+        port: 80
+        host: "{{ ansible_default_ipv4.address }}"
+        delay: 5
+        timeout: 60
+      delegate_to: localhost
+      
+    - name: Tester la connectivité HTTP avec l'IP réelle
       uri:
-        url: "http://{{ inventory_hostname }}"
+        url: "http://{{ ansible_default_ipv4.address }}"
         method: GET
         status_code: 200
+        timeout: 30
       delegate_to: localhost
       register: http_test
+      retries: 3
+      delay: 5
       
     - name: Afficher le résultat du test
       debug:
-        msg: "✅ Site accessible sur http://{{ inventory_hostname }}"
+        msg: "✅ Site accessible sur http://{{ ansible_default_ipv4.address }}"
       when: http_test.status == 200
+      
+    - name: Afficher les informations finales
+      debug:
+        msg: 
+          - "🎉 Déploiement terminé avec succès !"
+          - "🌐 URL du site: http://{{ ansible_default_ipv4.address }}"
+          - "🔑 Connexion SSH: ssh -i ~/.ssh/aws.pem ubuntu@{{ ansible_default_ipv4.address }}"
