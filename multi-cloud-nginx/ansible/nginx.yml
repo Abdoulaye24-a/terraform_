@@ -40,7 +40,8 @@
                   <h1 class="success">🎉 Nginx installé avec succès!</h1>
                   <div class="info">
                       <p><strong>Serveur:</strong> {{ inventory_hostname }}</p>
-                      <p><strong>IP Publique:</strong> {{ ansible_default_ipv4.address }}</p>
+                      <p><strong>IP Publique:</strong> {{ ansible_host }}</p>
+                      <p><strong>IP Privée:</strong> {{ ansible_default_ipv4.address }}</p>
                       <p><strong>Date de déploiement:</strong> {{ ansible_date_time.iso8601 }}</p>
                       <p><strong>Distribution:</strong> {{ ansible_distribution }} {{ ansible_distribution_version }}</p>
                       <p><strong>Architecture:</strong> {{ ansible_architecture }}</p>
@@ -88,17 +89,17 @@
       debug:
         msg: "Nginx est {{ nginx_status.status.ActiveState }}"
         
-    - name: Attendre que nginx soit disponible
+    - name: Attendre que nginx soit disponible sur l'IP publique
       wait_for:
         port: 80
-        host: "{{ ansible_default_ipv4.address }}"
+        host: "{{ ansible_host }}"
         delay: 5
         timeout: 60
       delegate_to: localhost
       
-    - name: Tester la connectivité HTTP avec l'IP réelle
+    - name: Tester la connectivité HTTP avec l'IP publique
       uri:
-        url: "http://{{ ansible_default_ipv4.address }}"
+        url: "http://{{ ansible_host }}"
         method: GET
         status_code: 200
         timeout: 30
@@ -109,12 +110,12 @@
       
     - name: Afficher le résultat du test
       debug:
-        msg: "✅ Site accessible sur http://{{ ansible_default_ipv4.address }}"
+        msg: "✅ Site accessible sur http://{{ ansible_host }}"
       when: http_test.status == 200
       
     - name: Afficher les informations finales
       debug:
         msg: 
           - "🎉 Déploiement terminé avec succès !"
-          - "🌐 URL du site: http://{{ ansible_default_ipv4.address }}"
-          - "🔑 Connexion SSH: ssh -i ~/.ssh/aws.pem ubuntu@{{ ansible_default_ipv4.address }}"
+          - "🌐 URL du site: http://{{ ansible_host }}"
+          - "🔑 Connexion SSH: ssh -i ~/.ssh/aws.pem ubuntu@{{ ansible_host }}"
