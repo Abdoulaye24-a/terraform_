@@ -12,20 +12,22 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       TF_VAR_aws_key_name: ${{ secrets.TF_VAR_aws_key_name }}
-
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
+        
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
-
+        with:
+          terraform_wrapper: false  # Important pour les outputs
+          
       - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.AWS_SSH_PRIVATE_KEY }}" > ~/.ssh/aws.pem
           chmod 600 ~/.ssh/aws.pem
-
+          
       - name: Terraform Init & Apply
         run: |
           cd multi-cloud-nginx/terraform/aws
@@ -33,16 +35,72 @@ jobs:
           terraform apply -auto-approve
           terraform output -raw aws_public_ip > ../../scripts/ip.txt
           echo "{\"aws\":\"$(cat ../../scripts/ip.txt)\"}" > ../../scripts/ips.json
-
+          
       - name: Generate Ansible Inventory
         run: |
           cd multi-cloud-nginx/scripts
           python3 generate_inventory.py
-
+          
+      - name: Verify Inventory
+        run: |
+          cd multi-cloud-nginx/ansible
+          echo "📄 Contenu de l'inventaire :"
+          cat inventory.ini
+          echo ""
+          echo "🔍 Validation de l'inventaire :"
+          ansible-inventory -i inventory.ini --list
+          
       - name: Install Ansible
         run: sudo apt-get update && sudo apt-get install -y ansible
-
+        
+      - name: Test SSH Connection
+        run: |
+          cd multi-cloud-nginx/ansible
+          echo "🔐 Test de connexion SSH :"
+          ansible aws -i inventory.ini -m ping --timeout=60 -v
+        continue-on-error: true
+        
+      - name: Wait for SSH to be ready
+        run: |
+          cd multi-cloud-nginx/ansible
+          # Récupérer l'IP depuis l'inventaire
+          AWS_IP=$(grep ansible_host inventory.ini | sed 's/.*ansible_host=\([^ ]*\).*/\1/')
+          echo "⏳ Attente que SSH soit prêt sur $AWS_IP..."
+          
+          # Attendre que SSH soit disponible
+          for i in {1..20}; do
+            if ssh -i ~/.ssh/aws.pem -o StrictHostKeyChecking=no -o ConnectTimeout=10 ubuntu@$AWS_IP "echo 'SSH OK'" 2>/dev/null; then
+              echo "✅ SSH est prêt !"
+              break
+            fi
+            echo "Tentative $i/20 - SSH pas encore prêt, attente de 15s..."
+            sleep 15
+          done
+          
       - name: Run Ansible Playbook
         run: |
           cd multi-cloud-nginx/ansible
-          ansible-playbook -i inventory.ini nginx.yml --ssh-common-args='-o StrictHostKeyChecking=no'
+          # Utiliser le bon nom de fichier
+          if [ -f "ansible.yml" ]; then
+            PLAYBOOK="ansible.yml"
+          elif [ -f "nginx.yml" ]; then
+            PLAYBOOK="nginx.yml"
+          elif [ -f "playbook.yml" ]; then
+            PLAYBOOK="playbook.yml"
+          else
+            echo "❌ Aucun playbook trouvé !"
+            ls -la
+            exit 1
+          fi
+          
+          echo "🚀 Exécution du playbook : $PLAYBOOK"
+          ansible-playbook -i inventory.ini $PLAYBOOK --ssh-common-args='-o StrictHostKeyChecking=no' -v
+          
+      - name: Display Results
+        run: |
+          cd multi-cloud-nginx/ansible
+          AWS_IP=$(grep ansible_host inventory.ini | sed 's/.*ansible_host=\([^ ]*\).*/\1/')
+          echo ""
+          echo "🎉 Déploiement terminé !"
+          echo "🌐 Site accessible sur : http://$AWS_IP"
+          echo "🔑 Connexion SSH : ssh -i ~/.ssh/aws.pem ubuntu@$AWS_IP"
