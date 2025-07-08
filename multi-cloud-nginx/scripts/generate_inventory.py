@@ -34,18 +34,25 @@ def create_inventory_file(aws_ip):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     inventory_path = os.path.join(script_dir, '../ansible/inventory.ini')
     os.makedirs(os.path.dirname(inventory_path), exist_ok=True)
-
+    
+    # CORRECTION ICI : Donner un nom d'hôte à l'IP
     content = f"""[aws]
-{aws_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/aws.pem
+aws-server ansible_host={aws_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/aws.pem
 
 [aws:vars]
 ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 ansible_python_interpreter=/usr/bin/python3
 """
+    
     with open(inventory_path, 'w') as f:
         f.write(content)
-
+    
     print(f"✅ Fichier généré : {inventory_path}")
+    
+    # Afficher le contenu pour debug
+    print("📄 Contenu de l'inventaire :")
+    print(content)
+    
     return inventory_path
 
 def main():
