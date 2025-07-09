@@ -1,52 +1,418 @@
 ---
-- name: Installer et configurer Nginx
-  hosts: aws
+- name: Configuration Apache On-Premises - THIERNO ABDOULAYE BALDE
+  hosts: onpremises
   become: yes
   gather_facts: yes
   vars:
-    nginx_port: 80
+    apache_port: 80
+    student_name: "THIERNO ABDOULAYE BALDE"
+    filiere: "Réseaux et Systèmes d'Information"
+    ecole: "Institut Supérieur d'Informatique"
     
   tasks:
-    - name: Attendre que l'instance soit prête
-      wait_for_connection:
-        timeout: 300
-        
-    - name: Update apt cache
+    - name: Vérifier la connectivité
+      ping:
+      
+    - name: Afficher les informations de déploiement
+      debug:
+        msg:
+          - "🎓 Étudiant : {{ student_name }}"
+          - "🏫 École : {{ ecole }}"
+          - "📚 Filière : {{ filiere }}"
+          - "🖥️ VM : {{ inventory_hostname }}"
+          - "🌐 IP : {{ ansible_host }}"
+      
+    - name: Mettre à jour le cache des paquets
       apt:
         update_cache: yes
         cache_valid_time: 3600
         
-    - name: Installer nginx
+    - name: Installer Apache2
       apt:
-        name: nginx
+        name: apache2
         state: present
         
-    - name: Créer une page HTML personnalisée
+    - name: Installer des outils utiles
+      apt:
+        name:
+          - apache2-utils
+          - curl
+          - htop
+          - tree
+        state: present
+        
+    - name: Activer les modules Apache
+      apache2_module:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - rewrite
+        - ssl
+        - headers
+      notify: restart apache2
+        
+    - name: Créer la page web personnalisée de THIERNO ABDOULAYE BALDE
       copy:
         content: |
           <!DOCTYPE html>
-          <html>
+          <html lang="fr">
           <head>
-              <title>Nginx sur AWS</title>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Infrastructure Multi-Cloud - THIERNO ABDOULAYE BALDE</title>
               <style>
-                  body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-                  .container { max-width: 600px; margin: 0 auto; }
-                  .success { color: #28a745; }
-                  .info { background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }
+                  * {
+                      margin: 0;
+                      padding: 0;
+                      box-sizing: border-box;
+                  }
+
+                  body {
+                      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      min-height: 100vh;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      color: white;
+                      overflow-x: hidden;
+                  }
+
+                  .container {
+                      max-width: 1000px;
+                      width: 90%;
+                      background: rgba(255, 255, 255, 0.1);
+                      backdrop-filter: blur(20px);
+                      border-radius: 25px;
+                      padding: 40px;
+                      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+                      border: 1px solid rgba(255, 255, 255, 0.2);
+                      animation: slideIn 1s ease-out;
+                  }
+
+                  @keyframes slideIn {
+                      from {
+                          opacity: 0;
+                          transform: translateY(50px);
+                      }
+                      to {
+                          opacity: 1;
+                          transform: translateY(0);
+                      }
+                  }
+
+                  .header {
+                      text-align: center;
+                      margin-bottom: 40px;
+                      border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+                      padding-bottom: 30px;
+                  }
+
+                  .title {
+                      font-size: 3em;
+                      font-weight: bold;
+                      background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
+                      -webkit-background-clip: text;
+                      -webkit-text-fill-color: transparent;
+                      margin-bottom: 15px;
+                      text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+                  }
+
+                  .subtitle {
+                      font-size: 1.5em;
+                      opacity: 0.9;
+                      margin-bottom: 10px;
+                  }
+
+                  .student-info {
+                      background: rgba(255, 255, 255, 0.1);
+                      padding: 25px;
+                      border-radius: 15px;
+                      margin: 30px 0;
+                      border-left: 5px solid #4ecdc4;
+                  }
+
+                  .student-name {
+                      font-size: 2em;
+                      font-weight: bold;
+                      color: #4ecdc4;
+                      margin-bottom: 15px;
+                      text-align: center;
+                  }
+
+                  .academic-info {
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                      gap: 20px;
+                      margin-top: 20px;
+                  }
+
+                  .info-item {
+                      background: rgba(255, 255, 255, 0.1);
+                      padding: 15px;
+                      border-radius: 10px;
+                      text-align: center;
+                  }
+
+                  .info-label {
+                      font-weight: bold;
+                      color: #ffd93d;
+                      margin-bottom: 5px;
+                  }
+
+                  .info-value {
+                      font-size: 1.1em;
+                      color: white;
+                  }
+
+                  .architecture-section {
+                      margin: 40px 0;
+                  }
+
+                  .section-title {
+                      font-size: 2em;
+                      text-align: center;
+                      margin-bottom: 30px;
+                      color: #ffd93d;
+                  }
+
+                  .cloud-grid {
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                      gap: 30px;
+                      margin: 30px 0;
+                  }
+
+                  .cloud-card {
+                      background: rgba(255, 255, 255, 0.1);
+                      padding: 30px;
+                      border-radius: 20px;
+                      text-align: center;
+                      border: 2px solid transparent;
+                      transition: all 0.3s ease;
+                      position: relative;
+                      overflow: hidden;
+                  }
+
+                  .cloud-card:hover {
+                      transform: translateY(-10px);
+                      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+                  }
+
+                  .aws-card {
+                      border-color: #ff9900;
+                      background: linear-gradient(135deg, rgba(255, 153, 0, 0.2), rgba(255, 153, 0, 0.1));
+                  }
+
+                  .onprem-card {
+                      border-color: #e74c3c;
+                      background: linear-gradient(135deg, rgba(231, 76, 60, 0.2), rgba(231, 76, 60, 0.1));
+                  }
+
+                  .cloud-icon {
+                      font-size: 4em;
+                      margin-bottom: 20px;
+                      display: block;
+                  }
+
+                  .cloud-title {
+                      font-size: 1.5em;
+                      font-weight: bold;
+                      margin-bottom: 15px;
+                  }
+
+                  .cloud-details {
+                      margin: 15px 0;
+                  }
+
+                  .tech-stack {
+                      background: rgba(255, 255, 255, 0.1);
+                      padding: 25px;
+                      border-radius: 15px;
+                      margin: 30px 0;
+                  }
+
+                  .tech-grid {
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                      gap: 20px;
+                      margin-top: 20px;
+                  }
+
+                  .tech-item {
+                      background: rgba(255, 255, 255, 0.1);
+                      padding: 15px;
+                      border-radius: 10px;
+                      text-align: center;
+                      border: 1px solid rgba(255, 255, 255, 0.2);
+                  }
+
+                  .footer {
+                      text-align: center;
+                      margin-top: 40px;
+                      padding-top: 30px;
+                      border-top: 2px solid rgba(255, 255, 255, 0.2);
+                      opacity: 0.8;
+                  }
+
+                  .status-indicator {
+                      display: inline-block;
+                      width: 12px;
+                      height: 12px;
+                      border-radius: 50%;
+                      background: #4ecdc4;
+                      margin-right: 8px;
+                      animation: pulse 2s infinite;
+                  }
+
+                  @keyframes pulse {
+                      0% { opacity: 1; }
+                      50% { opacity: 0.5; }
+                      100% { opacity: 1; }
+                  }
+
+                  .project-badge {
+                      background: linear-gradient(45deg, #667eea, #764ba2);
+                      color: white;
+                      padding: 10px 20px;
+                      border-radius: 25px;
+                      font-weight: bold;
+                      display: inline-block;
+                      margin: 10px 5px;
+                      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+                  }
+
+                  .server-details {
+                      background: rgba(255, 255, 255, 0.1);
+                      padding: 20px;
+                      border-radius: 15px;
+                      margin: 20px 0;
+                      border-left: 4px solid #4ecdc4;
+                  }
+
+                  @media (max-width: 768px) {
+                      .title {
+                          font-size: 2em;
+                      }
+                      
+                      .container {
+                          padding: 20px;
+                      }
+                      
+                      .academic-info {
+                          grid-template-columns: 1fr;
+                      }
+                  }
               </style>
           </head>
           <body>
               <div class="container">
-                  <h1 class="success">🎉 Nginx installé avec succès!</h1>
-                  <div class="info">
-                      <p><strong>Serveur:</strong> {{ inventory_hostname }}</p>
-                      <p><strong>IP Publique:</strong> {{ ansible_host }}</p>
-                      <p><strong>IP Privée:</strong> {{ ansible_default_ipv4.address }}</p>
-                      <p><strong>Date de déploiement:</strong> {{ ansible_date_time.iso8601 }}</p>
-                      <p><strong>Distribution:</strong> {{ ansible_distribution }} {{ ansible_distribution_version }}</p>
-                      <p><strong>Architecture:</strong> {{ ansible_architecture }}</p>
+                  <div class="header">
+                      <h1 class="title">🚀 Infrastructure Multi-Cloud</h1>
+                      <p class="subtitle">Projet de Fin d'Études - Réseaux et Systèmes d'Information</p>
                   </div>
-                  <p>🚀 Déployé automatiquement avec Terraform + Ansible</p>
+
+                  <div class="student-info">
+                      <div class="student-name">👨‍🎓 {{ student_name }}</div>
+                      <div class="academic-info">
+                          <div class="info-item">
+                              <div class="info-label">🎓 Filière</div>
+                              <div class="info-value">{{ filiere }}</div>
+                          </div>
+                          <div class="info-item">
+                              <div class="info-label">🏫 Établissement</div>
+                              <div class="info-value">{{ ecole }}</div>
+                          </div>
+                          <div class="info-item">
+                              <div class="info-label">📅 Année Académique</div>
+                              <div class="info-value">2024-2025</div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="server-details">
+                      <h3 style="color: #4ecdc4; margin-bottom: 15px;">🖥️ Informations Serveur On-Premises</h3>
+                      <p><strong>Hostname:</strong> {{ inventory_hostname }}</p>
+                      <p><strong>IP Locale:</strong> {{ ansible_host }}</p>
+                      <p><strong>OS:</strong> {{ ansible_distribution }} {{ ansible_distribution_version }}</p>
+                      <p><strong>Architecture:</strong> {{ ansible_architecture }}</p>
+                      <p><strong>Déployé le:</strong> {{ ansible_date_time.date }} à {{ ansible_date_time.time }}</p>
+                  </div>
+
+                  <div class="architecture-section">
+                      <h2 class="section-title">🏗️ Architecture Déployée</h2>
+                      
+                      <div class="cloud-grid">
+                          <div class="cloud-card aws-card">
+                              <span class="cloud-icon">☁️</span>
+                              <h3 class="cloud-title">Amazon Web Services</h3>
+                              <div class="cloud-details">
+                                  <p><strong>Serveur Web:</strong> Nginx</p>
+                                  <p><strong>Instance:</strong> t3.micro</p>
+                                  <p><strong>OS:</strong> Ubuntu 22.04 LTS</p>
+                                  <p><strong>Région:</strong> eu-north-1</p>
+                                  <p><span class="status-indicator"></span>Opérationnel</p>
+                              </div>
+                          </div>
+
+                          <div class="cloud-card onprem-card">
+                              <span class="cloud-icon">🏠</span>
+                              <h3 class="cloud-title">On-Premises Local</h3>
+                              <div class="cloud-details">
+                                  <p><strong>Serveur Web:</strong> Apache</p>
+                                  <p><strong>Infrastructure:</strong> VirtualBox</p>
+                                  <p><strong>OS:</strong> {{ ansible_distribution }} {{ ansible_distribution_version }}</p>
+                                  <p><strong>Réseau:</strong> Bridge Ethernet</p>
+                                  <p><span class="status-indicator"></span>Opérationnel</p>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div class="tech-stack">
+                      <h2 class="section-title">🛠️ Stack Technologique</h2>
+                      <div class="tech-grid">
+                          <div class="tech-item">
+                              <h4>🏗️ Infrastructure as Code</h4>
+                              <p>Terraform</p>
+                          </div>
+                          <div class="tech-item">
+                              <h4>⚙️ Configuration Management</h4>
+                              <p>Ansible</p>
+                          </div>
+                          <div class="tech-item">
+                              <h4>🚀 CI/CD</h4>
+                              <p>GitHub Actions</p>
+                          </div>
+                          <div class="tech-item">
+                              <h4>☁️ Cloud Public</h4>
+                              <p>AWS EC2</p>
+                          </div>
+                          <div class="tech-item">
+                              <h4>🏠 Virtualisation</h4>
+                              <p>VirtualBox</p>
+                          </div>
+                          <div class="tech-item">
+                              <h4>🌐 Serveurs Web</h4>
+                              <p>Nginx & Apache</p>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div style="text-align: center; margin: 30px 0;">
+                      <span class="project-badge">DevOps</span>
+                      <span class="project-badge">Multi-Cloud</span>
+                      <span class="project-badge">Automation</span>
+                      <span class="project-badge">Infrastructure</span>
+                  </div>
+
+                  <div class="footer">
+                      <p><strong>🎯 Objectifs du Projet :</strong></p>
+                      <p>Démonstration des compétences en administration système, cloud computing,</p>
+                      <p>automatisation d'infrastructure et déploiement multi-environnement.</p>
+                      <br>
+                      <p><em>💡 "L'avenir appartient à ceux qui automatisent aujourd'hui"</em></p>
+                  </div>
               </div>
           </body>
           </html>
@@ -55,67 +421,69 @@
         group: www-data
         mode: '0644'
         
-    - name: Configurer le firewall pour HTTP
-      ufw:
-        rule: allow
-        port: '80'
-        proto: tcp
+    - name: Configurer Apache - ServerName
+      lineinfile:
+        path: /etc/apache2/apache2.conf
+        line: "ServerName {{ ansible_host }}"
+        regexp: "^ServerName"
+      notify: restart apache2
         
-    - name: Configurer le firewall pour SSH
-      ufw:
-        rule: allow
-        port: '22'
-        proto: tcp
-        
-    - name: Activer le firewall
-      ufw:
-        state: enabled
-        policy: deny
-        direction: incoming
-        
-    - name: Démarrer et activer nginx
+    - name: Démarrer et activer Apache
       systemd:
-        name: nginx
+        name: apache2
         state: started
         enabled: true
         daemon_reload: true
         
-    - name: Vérifier le statut de nginx
+    - name: Vérifier le statut d'Apache
       systemd:
-        name: nginx
-      register: nginx_status
+        name: apache2
+      register: apache_status
       
-    - name: Afficher le statut de nginx
+    - name: Afficher le statut d'Apache
       debug:
-        msg: "Nginx est {{ nginx_status.status.ActiveState }}"
+        msg: "✅ Apache est {{ apache_status.status.ActiveState }}"
         
-    - name: Attendre que nginx soit disponible sur l'IP publique
-      wait_for:
-        port: 80
-        host: "{{ ansible_host }}"
-        delay: 5
-        timeout: 60
-      delegate_to: localhost
-      
-    - name: Tester la connectivité HTTP avec l'IP publique
+    - name: Tester Apache localement
       uri:
-        url: "http://{{ ansible_host }}"
+        url: "http://localhost"
         method: GET
         status_code: 200
-        timeout: 30
-      delegate_to: localhost
-      register: http_test
-      retries: 3
-      delay: 5
+        timeout: 10
+      register: local_test
       
-    - name: Afficher le résultat du test
+    - name: Créer un fichier d'informations système
+      copy:
+        content: |
+          # Informations système - {{ student_name }}
+          Date de déploiement: {{ ansible_date_time.iso8601 }}
+          Hostname: {{ inventory_hostname }}
+          IP: {{ ansible_host }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Architecture: {{ ansible_architecture }}
+          Serveur Web: Apache
+          École: {{ ecole }}
+          Filière: {{ filiere }}
+        dest: /var/www/html/system-info.txt
+        owner: www-data
+        group: www-data
+        mode: '0644'
+        
+    - name: Afficher les résultats du déploiement
       debug:
-        msg: "✅ Site accessible sur http://{{ ansible_host }}"
-      when: http_test.status == 200
-      
-    - name: Afficher les informations finales
-      debug:
-        msg: 
-          - "🎉 Déploiement terminé avec succès !"
-          - "🌐 URL du site: http://{{ ansible_host }}"
-          - "🔑 Connexion SSH: ssh -i ~/.ssh/aws.pem ubuntu@{{ ansible_host }}"
+        msg:
+          - "🎉 Déploiement On-Premises terminé avec succès !"
+          - "👨‍🎓 Étudiant : {{ student_name }}"
+          - "🏫 École : {{ ecole }}"
+          - "📚 Filière : {{ filiere }}"
+          - "🌐 Site accessible sur : http://{{ ansible_host }}"
+          - "🔧 Configuration : Apache sur VirtualBox"
+          - "📂 Document root : /var/www/html"
+          - "📊 Status Apache : {{ apache_status.status.ActiveState }}"
+          - "📄 Info système : http://{{ ansible_host }}/system-info.txt"
+
+  handlers:
+    - name: restart apache2
+      systemd:
+        name: apache2
+        state: restarted
